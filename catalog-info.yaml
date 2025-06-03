@@ -1,0 +1,31 @@
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: dora-test-guilherme
+  title: dora-test-guilherme
+  description: Central de Talentos BFF
+  annotations:
+    github.com/project-slug: gupy-io/dora-test-guilherme
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: service
+  owner: engenharia
+  lifecycle: production
+  definition:
+    $text: https://dora-test-guilherme.api.gupy.io/docs-json
+
+  services:
+    - name: auth-api
+      path: app/app-a
+      monitorGroup: Plataforma de Autenticação
+      monitor: Auth API
+
+    - name: users-api
+      path: app/app-b
+      monitorGroup: Plataforma de Usuários
+      monitor: Users API
+
+    - name: payroll-worker
+      path: app/app-c
+      monitorGroup: Folha de Pagamento
+      monitor: Payroll Worker
