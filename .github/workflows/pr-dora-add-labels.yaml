@@ -1,0 +1,64 @@
+name: Add Labels from Service Path
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  label-from-path:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get list of changed files
+        id: changed
+        run: |
+          echo "files=$(git diff --name-only origin/main...HEAD | xargs)" >> "$GITHUB_OUTPUT"
+
+      - name: Detect labels from service path
+        id: detect
+        run: |
+          declare -A label_map
+          for i in $(seq 0 "$(yq eval '...' catalog-info.yaml | wc -l)"); do
+            kind=$(yq eval "select(documentIndex == $i) | .kind" catalog-info.yaml)
+            if [[ "$kind" == "Component" ]]; then
+              name=$(yq eval "select(documentIndex == $i) | .metadata.name" catalog-info.yaml)
+              path=$(yq eval "select(documentIndex == $i) | .metadata.annotations.\"gupy.io/service-path\"" catalog-info.yaml)
+              if [[ -n "$name" && -n "$path" ]]; then
+                label_map["$path"]="$name"
+              fi
+            fi
+          done
+
+          changed_files=(${{ steps.changed.outputs.files }})
+          declare -A labels
+
+          for file in "${changed_files[@]}"; do
+            for path in "${!label_map[@]}"; do
+              if [[ "$file" == $path* ]]; then
+                labels["${label_map[$path]}"]=1
+              fi
+            done
+          done
+
+          label_list=$(IFS=,; echo "${!labels[*]}")
+          echo "labels=$label_list" >> "$GITHUB_OUTPUT"
+
+      - name: Add labels to PR
+        if: steps.detect.outputs.labels != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = '${{ steps.detect.outputs.labels }}'.split(',');
+            await github.rest.issues.addLabels({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: labels,
+            });
