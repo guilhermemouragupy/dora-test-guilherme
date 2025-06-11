@@ -1,31 +1,108 @@
 apiVersion: backstage.io/v1alpha1
-kind: API
+kind: System
 metadata:
   name: dora-test-guilherme
-  title: dora-test-guilherme
-  description: Central de Talentos BFF
+  title: Gupy Dora Test Guilherme
+  description: Sistema de teste do Guilherme.
+  tags:
+    - teste
   annotations:
     github.com/project-slug: gupy-io/dora-test-guilherme
     backstage.io/techdocs-ref: dir:.
+    jenkins.io/job-full-name: Tools/dora-test-guilherme-v2
+    datadog.com/dashboard-url: https://app.datadoghq.com/dashboard/wxz-knr-nfc/audit-trail
+  links:
+    - url: https://github.com/gupy-io/dora-test-guilherme
+      title: Repositório GitHub
+      icon: github
+    - url: https://jenkins.tools.internal.gupy.io/job/Tools/job/dora-test-guilherme-v2/
+      title: Pipeline Jenkins - Build/Release
+      icon: jenkins
+    - url: https://jenkins.tools.internal.gupy.io/job/Tools/job/dora-test-guilherme-v2/job/release%20cronjob/
+      title: Pipeline Jenkins - CronJob
+      icon: jenkins
+    - url: https://app.datadoghq.com/dashboard/wxz-knr-nfc/audit-trail
+      title: Dashboard Datadog
+      icon: datadog
+spec:
+  owner: plataforma
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-a
+  title: App A
+  description: Serviço que consome eventos de mudança de dados do SQS e os armazena no Redshift em batches mensagens.
+  tags:
+    - nodejs
+    - typescript
+    - sqs-consumer
+    - redshift
+    - event-processing
+  annotations:
+    github.com/project-slug: gupy-io/dora-test-guilherme
+    gupy.io/service-path: app/app-a
+    backstage.io/kubernetes-namespace: dora-test-guilherme-prod, dora-test-guilherme-staging
 spec:
   type: service
-  owner: engenharia
+  owner: plataforma
   lifecycle: production
-  definition:
-    $text: https://dora-test-guilherme.api.gupy.io/docs-json
+  system: dora-test-guilherme
+  consumesApis: []
+  dependsOn:
+    - resource:aws-sqs
+    - resource:aws-redshift
 
-  services:
-    - name: auth-api
-      path: app/app-a
-      monitorGroup: Plataforma de Autenticação
-      monitor: Auth API
-
-    - name: users-api
-      path: app/app-b
-      monitorGroup: Plataforma de Usuários
-      monitor: Users API
-
-    - name: payroll-worker
-      path: app/app-c
-      monitorGroup: Folha de Pagamento
-      monitor: Payroll Worker
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-b
+  title: App B
+  description: Serviço que consome eventos de mudança de dados do SQS e os armazena no Redshift em batches mensagens.
+  tags:
+    - nodejs
+    - typescript
+    - sqs-consumer
+    - redshift
+    - event-processing
+  annotations:
+    github.com/project-slug: gupy-io/dora-test-guilherme
+    gupy.io/service-path: app/app-b
+    backstage.io/kubernetes-namespace: dora-test-guilherme-prod, dora-test-guilherme-staging
+spec:
+  type: service
+  owner: plataforma
+  lifecycle: production
+  system: dora-test-guilherme
+  consumesApis: []
+  dependsOn:
+    - resource:aws-sqs
+    - resource:aws-redshift
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-c
+  title: App C
+  description: Serviço que consome eventos de mudança de dados do SQS e os armazena no Redshift em batches mensagens.
+  tags:
+    - nodejs
+    - typescript
+    - sqs-consumer
+    - redshift
+    - event-processing
+  annotations:
+    github.com/project-slug: gupy-io/dora-test-guilherme
+    gupy.io/service-path: app/app-c
+    backstage.io/kubernetes-namespace: dora-test-guilherme-prod, dora-test-guilherme-staging
+spec:
+  type: service
+  owner: plataforma
+  lifecycle: production
+  system: dora-test-guilherme
+  consumesApis: []
+  dependsOn:
+    - resource:aws-sqs
+    - resource:aws-redshift
