@@ -1,9 +1,9 @@
 name: Trigger Deployments from Labels
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types:
+      - closed
 
 permissions:
   contents: read
@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   prepare:
+    if: ${{ github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' }}
     runs-on: ubuntu-latest
     outputs:
       labels: ${{ steps.get-labels.outputs.labels }}
@@ -21,41 +22,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get PR labels for this commit
+      - name: Get PR labels from event
         id: get-labels
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const commitSha = '${{ github.sha }}';
-            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: commitSha,
-            });
-
-            if (prs.data.length === 0) {
-              console.log('❌ Nenhum PR encontrado para o commit.');
-              core.setOutput('labels', '[]');
-              return;
-            }
-
-            const prNumber = prs.data[0].number;
-            console.log(`✅ PR encontrado: #${prNumber}`);
-
-            const labelsResponse = await github.rest.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-            });
-
-            const labels = labelsResponse.data.map(label => label.name);
-            console.log('✅ Labels encontradas:', labels);
+            const pr = context.payload.pull_request;
+            const labels = pr.labels.map(label => label.name);
+            console.log('✅ Labels encontradas no PR:', labels);
             core.setOutput('labels', JSON.stringify(labels));
 
   deploy:
     needs: prepare
-    if: ${{ fromJson(needs.prepare.outputs.labels) != '' }}
+    if: ${{ needs.prepare.outputs.labels != '[]' && needs.prepare.outputs.labels != '' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
