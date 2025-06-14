@@ -1,70 +1,65 @@
-name: DORA - Trigger Deployments from Labels
+name: Add Labels from Service Path
 
 on:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: read
-  pull-requests: read
-  actions: write
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  prepare:
+  label-from-path:
     runs-on: ubuntu-latest
-    outputs:
-      labels: ${{ steps.get-labels.outputs.labels }}
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get PR labels for this commit
-        id: get-labels
+      - name: Get list of changed files
+        id: changed
+        run: |
+          echo "files=$(git diff --name-only origin/main...HEAD | xargs)" >> "$GITHUB_OUTPUT"
+
+      - name: Detect labels from service path
+        id: detect
+        run: |
+          declare -A label_map
+          for i in $(seq 0 "$(yq eval '...' catalog-info.yaml | wc -l)"); do
+            kind=$(yq eval "select(documentIndex == $i) | .kind" catalog-info.yaml)
+            if [[ "$kind" == "Component" ]]; then
+              name=$(yq eval "select(documentIndex == $i) | .metadata.name" catalog-info.yaml)
+              path=$(yq eval "select(documentIndex == $i) | .metadata.annotations.\"gupy.io/service-path\"" catalog-info.yaml)
+              if [[ -n "$name" && -n "$path" ]]; then
+                label_map["$path"]="$name"
+              fi
+            fi
+          done
+
+          changed_files=(${{ steps.changed.outputs.files }})
+          declare -A labels
+
+          for file in "${changed_files[@]}"; do
+            for path in "${!label_map[@]}"; do
+              if [[ "$file" == $path* ]]; then
+                labels["${label_map[$path]}"]=1
+              fi
+            done
+          done
+
+          label_list=$(IFS=,; echo "${!labels[*]}")
+          echo "labels=$label_list" >> "$GITHUB_OUTPUT"
+
+      - name: Add labels to PR
+        if: steps.detect.outputs.labels != ''
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const commitSha = '${{ github.sha }}';
-            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            const labels = '${{ steps.detect.outputs.labels }}'.split(',');
+            await github.rest.issues.addLabels({
+              issue_number: context.payload.pull_request.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              commit_sha: commitSha,
+              labels: labels,
             });
-
-            if (prs.data.length === 0) {
-              console.log('❌ Nenhum PR encontrado para o commit.');
-              core.setOutput('labels', '[]');
-              return;
-            }
-
-            const prNumber = prs.data[0].number;
-            console.log(`✅ PR encontrado: #${prNumber}`);
-
-            const labelsResponse = await github.rest.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-            });
-
-            const labels = labelsResponse.data.map(label => label.name);
-            console.log('✅ Labels encontradas:', labels);
-            core.setOutput('labels', JSON.stringify(labels));
-
-  deploy:
-    needs: prepare
-    if: ${{ needs.prepare.outputs.labels != '[]' && needs.prepare.outputs.labels != '' }}
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        label: ${{ fromJson(needs.prepare.outputs.labels) }}
-    name: Deploy ${{ matrix.label }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy for ${{ matrix.label }}
-        run: |
-          echo "🚀 Executando deploy para serviço: ${{ matrix.label }}"
