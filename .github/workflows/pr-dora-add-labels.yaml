@@ -1,4 +1,4 @@
-name: Add Labels from Service Path
+name: DORA - Add Labels from Service Path
 
 on:
   pull_request:
