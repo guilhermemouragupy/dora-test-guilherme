@@ -66,4 +66,5 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy for ${{ matrix.label }}
-        run: echo "🚀 Executando deploy para serviço: ${{ matrix.label }}"
+        run: |
+          echo "🚀 Executando deploy para serviço: ${{ matrix.label }}"
