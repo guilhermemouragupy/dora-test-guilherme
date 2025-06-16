@@ -76,3 +76,4 @@ jobs:
             } else {
               console.log('ℹ️ Nenhuma label para adicionar.');
             }
+
