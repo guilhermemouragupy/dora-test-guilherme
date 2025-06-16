@@ -26,14 +26,22 @@ jobs:
         id: detect
         run: |
           declare -A label_map
-          for i in $(seq 0 "$(yq eval '...' catalog-info.yaml | wc -l)"); do
-            kind=$(yq eval "select(documentIndex == $i) | .kind" catalog-info.yaml)
+          total_docs=$(yq e 'length' catalog-info.yaml)
+
+          for i in $(seq 0 $((total_docs - 1))); do
+            kind=$(yq e "select(documentIndex == $i) | .kind" catalog-info.yaml)
             if [[ "$kind" == "Component" ]]; then
-              name=$(yq eval "select(documentIndex == $i) | .metadata.name" catalog-info.yaml)
-              path=$(yq eval "select(documentIndex == $i) | .metadata.annotations.\"gupy.io/service-path\"" catalog-info.yaml)
-              if [[ -n "$name" && -n "$path" ]]; then
-                label_map["$path"]="$name"
-              fi
+              name=$(yq e "select(documentIndex == $i) | .metadata.name" catalog-info.yaml)
+              paths=$(yq e "select(documentIndex == $i) | .metadata.annotations.\"gupy.io/service-path\"" catalog-info.yaml)
+
+              # Split paths separados por vírgula
+              IFS=',' read -ra path_array <<< "$paths"
+              for path in "${path_array[@]}"; do
+                clean_path=$(echo "$path" | xargs)  # remove espaços em branco
+                if [[ -n "$clean_path" ]]; then
+                  label_map["$clean_path"]="$name"
+                fi
+              done
             fi
           done
 
@@ -42,7 +50,7 @@ jobs:
 
           for file in "${changed_files[@]}"; do
             for path in "${!label_map[@]}"; do
-              if [[ "$file" == $path* ]]; then
+              if [[ "$file" == "$path"* ]]; then
                 labels["${label_map[$path]}"]=1
               fi
             done

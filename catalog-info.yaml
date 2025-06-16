@@ -42,7 +42,7 @@ metadata:
     - event-processing
   annotations:
     github.com/project-slug: gupy-io/dora-test-guilherme
-    gupy.io/service-path: app/app-a
+    gupy.io/service-path: app/app-a, app/app-b
     backstage.io/kubernetes-namespace: dora-test-guilherme-prod, dora-test-guilherme-staging
 spec:
   type: service
