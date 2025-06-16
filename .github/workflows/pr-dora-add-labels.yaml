@@ -56,8 +56,9 @@ jobs:
             done
           done
 
-          label_list=$(IFS=,; echo "${!labels[*]}")
-          echo "labels=$label_list" >> "$GITHUB_OUTPUT"
+          # Gerar um JSON array válido
+          label_list_json=$(printf '%s\n' "${!labels[@]}" | jq -R . | jq -s .)
+          echo "labels=$label_list_json" >> "$GITHUB_OUTPUT"
 
       - name: Add labels to PR
         if: steps.detect.outputs.labels != ''
@@ -76,4 +77,3 @@ jobs:
             } else {
               console.log('ℹ️ Nenhuma label para adicionar.');
             }
-
