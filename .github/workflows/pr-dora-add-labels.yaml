@@ -56,8 +56,8 @@ jobs:
             done
           done
 
-          # Gerar um JSON array válido
-          label_list_json=$(printf '%s\n' "${!labels[@]}" | jq -R . | jq -s .)
+          # Gerar JSON array válido e compacto
+          label_list_json=$(printf '%s\n' "${!labels[@]}" | jq -R . | jq -s -c .)
           echo "labels=$label_list_json" >> "$GITHUB_OUTPUT"
 
       - name: Add labels to PR
