@@ -11,7 +11,6 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,49 +25,49 @@ jobs:
       - name: Detect labels from service path
         id: detect
         run: |
-          declare -A label_map
+          declare -A path_to_labels
+          total_docs=$(yq eval 'splitDoc' catalog-info.yaml | yq eval 'length' -)
 
-          # Itera sobre cada documento kind: Component
-          yq e 'select(.kind == "Component")' catalog-info.yaml --tojson | jq -c '.' | while read -r doc; do
-            name=$(echo "$doc" | jq -r '.metadata.name')
-            paths=$(echo "$doc" | jq -r '.metadata.annotations["gupy.io/service-path"]')
+          for i in $(seq 0 "$((total_docs - 1))"); do
+            kind=$(yq eval "select(documentIndex == $i) | .kind" catalog-info.yaml)
+            if [[ "$kind" == "Component" ]]; then
+              name=$(yq eval "select(documentIndex == $i) | .metadata.name" catalog-info.yaml)
+              paths=$(yq eval "select(documentIndex == $i) | .metadata.annotations.\"gupy.io/service-path\"" catalog-info.yaml)
 
-            # Se tiver múltiplos paths separados por vírgula
-            IFS=',' read -ra path_array <<< "$paths"
-            for path in "${path_array[@]}"; do
-              clean_path=$(echo "$path" | xargs)
-              if [[ -n "$clean_path" ]]; then
-                label_map["$clean_path"]="$name"
-              fi
-            done
-          done
-
-          echo "✅ Mapa de path -> label gerado:"
-          for key in "${!label_map[@]}"; do
-            echo "$key → ${label_map[$key]}"
+              # Suporte a múltiplos paths separados por vírgula
+              IFS=',' read -ra path_array <<< "$paths"
+              for path in "${path_array[@]}"; do
+                clean_path=$(echo "$path" | xargs)
+                if [[ -n "$clean_path" ]]; then
+                  path_to_labels["$clean_path"]+="$name "
+                fi
+              done
+            fi
           done
 
           changed_files=(${{ steps.changed.outputs.files }})
-          declare -A labels
+          declare -A final_labels
 
-          # Verifica quais arquivos batem com quais paths
           for file in "${changed_files[@]}"; do
-            for path in "${!label_map[@]}"; do
+            for path in "${!path_to_labels[@]}"; do
               if [[ "$file" == "$path"* ]]; then
-                labels["${label_map[$path]}"]=1
+                for label in ${path_to_labels[$path]}; do
+                  final_labels["$label"]=1
+                done
               fi
             done
           done
 
-          label_list=$(IFS=,; echo "${!labels[*]}")
-          echo "labels=$label_list" >> "$GITHUB_OUTPUT"
+          # Gera JSON array válido e compacto
+          label_list_json=$(printf '%s\n' "${!final_labels[@]}" | jq -R . | jq -s -c .)
+          echo "labels=$label_list_json" >> "$GITHUB_OUTPUT"
 
       - name: Add labels to PR
         if: steps.detect.outputs.labels != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const labels = '${{ steps.detect.outputs.labels }}'.split(',');
+            const labels = JSON.parse('${{ steps.detect.outputs.labels }}');
             if (labels.length > 0) {
               console.log('✅ Adicionando labels:', labels);
               await github.rest.issues.addLabels({
