@@ -66,13 +66,10 @@ jobs:
           script: |
             const labels = '${{ steps.detect.outputs.labels }}'.split(',');
             if (labels.length > 0) {
-              console.log('✅ Adicionando labels:', labels);
               await github.rest.issues.addLabels({
                 issue_number: context.payload.pull_request.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 labels: labels,
               });
-            } else {
-              console.log('ℹ️ Nenhuma label para adicionar.');
             }
