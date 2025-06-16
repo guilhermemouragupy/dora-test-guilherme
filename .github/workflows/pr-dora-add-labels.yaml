@@ -1,4 +1,4 @@
-name: DORA - Add Labels from Service Path
+name: DORA - PR Validation - Add Labels from Service Path
 
 on:
   pull_request:
