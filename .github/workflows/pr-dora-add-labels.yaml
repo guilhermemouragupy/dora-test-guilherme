@@ -26,7 +26,7 @@ jobs:
         id: detect
         run: |
           declare -A label_map
-          total_docs=$(yq eval 'splitDoc' catalog-info.yaml | yq eval 'length' -)
+          total_docs=$(yq eval '...' catalog-info.yaml | wc -l)
 
           for i in $(seq 0 "$((total_docs - 1))"); do
             kind=$(yq eval "select(documentIndex == $i) | .kind" catalog-info.yaml)
@@ -56,9 +56,8 @@ jobs:
             done
           done
 
-          # Gera JSON array válido e compacto
-          label_list_json=$(printf '%s\n' "${!labels[@]}" | jq -R . | jq -s -c .)
-          echo "labels=$label_list_json" >> "$GITHUB_OUTPUT"
+          label_list=$(IFS=,; echo "${!labels[*]}")
+          echo "labels=$label_list" >> "$GITHUB_OUTPUT"
 
       - name: Add labels to PR
         if: steps.detect.outputs.labels != ''
