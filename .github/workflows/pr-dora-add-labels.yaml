@@ -64,7 +64,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const labels = JSON.parse('${{ steps.detect.outputs.labels }}');
+            const labels = '${{ steps.detect.outputs.labels }}'.split(',');
             if (labels.length > 0) {
               console.log('✅ Adicionando labels:', labels);
               await github.rest.issues.addLabels({
