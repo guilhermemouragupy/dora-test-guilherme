@@ -1,7 +1,3 @@
 APP B
 
-agora vai
-deploy
-
-teste
-teeeeee
+Label A e B
